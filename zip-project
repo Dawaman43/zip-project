@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+
+EXCLUDE_DIRS=("node_modules" ".git" "__pycache__" ".venv" "venv" ".pytest_cache" "dist" "build" ".next" ".nuxt" "target" "vendor")
+OUTPUT_DIR="$HOME/Documents/zip-files"
+
+banner() {
+    echo "
+  ██████╗ ███████╗███████╗██╗     ██╗███╗   ██╗███████╗
+  ██╔══██╗██╔════╝██╔════╝██║     ██║████╗  ██║██╔════╝
+  ██║  ██║█████╗  █████╗  ██║     ██║██╔██╗ ██║█████╗  
+  ██║  ██║██╔══╝  ██╔══╝  ██║     ██║██║╚██╗██║██╔══╝  
+  ██████╔╝███████╗███████╗███████╗██║██║ ╚████║███████╗
+  ╚═════╝ ╚══════╝╚══════╝╚══════╝╚═╝╚═╝  ╚═══╝╚══════╝
+"
+}
+
+select_directory() {
+    if command -v fzf &> /dev/null; then
+        DIR=$(find ~ -maxdepth 3 -type d 2>/dev/null | fzf --prompt="Select project directory: " --height=15 --border)
+    else
+        echo "Select a directory:"
+        dirs=($(find ~ -maxdepth 3 -type d 2>/dev/null))
+        select DIR in "${dirs[@]}" "Custom" "Quit"; do
+            case $DIR in
+                "Custom")
+                    read -p "Enter custom path: " DIR
+                    break
+                    ;;
+                "Quit") exit 0 ;;
+                "") ;;
+                *) break ;;
+            esac
+        done
+    fi
+    echo "$DIR"
+}
+
+show_exclusions() {
+    local dir="$1"
+    echo ""
+    echo "Excluded directories:"
+    for d in "${EXCLUDE_DIRS[@]}"; do
+        count=$(find "$dir" -type d -name "$d" 2>/dev/null | wc -l)
+        if [[ $count -gt 0 ]]; then
+            echo "  ✗ $d ($count found)"
+        fi
+    done
+    echo ""
+}
+
+confirm() {
+    local dir="$1"
+    local zipname="$2"
+    
+    echo "Directory: $dir"
+    echo "Output: $OUTPUT_DIR/$zipname"
+    show_exclusions "$dir"
+    
+    read -p "Proceed? [Y/n] " confirm
+    case $confirm in
+        [nN]*) return 1 ;;
+        *) return 0 ;;
+    esac
+}
+
+create_zip() {
+    local source_dir="$1"
+    local output_zip="$2"
+    
+    mkdir -p "$OUTPUT_DIR"
+    
+    cd "$source_dir" || exit 1
+    
+    zip -r "$output_zip" . \
+        -x "*/node_modules/*" \
+        -x "*/.git/*" \
+        -x "*/__pycache__/*" \
+        -x "*/.venv/*" \
+        -x "*/venv/*" \
+        -x "*/.pytest_cache/*" \
+        -x "*/dist/*" \
+        -x "*/build/*" \
+        -x "*/.next/*" \
+        -x "*/.nuxt/*" \
+        -x "*/target/*" \
+        -x "*/vendor/*" \
+        -x "*/.DS_Store/*" \
+        -x "*.pyc" \
+        -x "*.pyo" \
+        -x "*.log"
+    
+    echo ""
+    echo "✓ Created: $output_zip"
+    echo "Size: $(du -h "$output_zip" | cut -f1)"
+}
+
+main() {
+    clear
+    banner
+    
+    DIR=$(select_directory)
+    
+    if [[ -z "$DIR" || ! -d "$DIR" ]]; then
+        echo "Invalid directory selected"
+        exit 1
+    fi
+    
+    ZIPNAME=$(basename "$DIR").zip
+    OUTPUT_ZIP="$OUTPUT_DIR/$ZIPNAME"
+    
+    if [[ -f "$OUTPUT_ZIP" ]]; then
+        read -p "File exists. Overwrite? [Y/n] " ow
+        case $ow in
+            [nN]) exit 0 ;;
+        esac
+    fi
+    
+    if confirm "$DIR" "$ZIPNAME"; then
+        create_zip "$DIR" "$OUTPUT_ZIP"
+    else
+        echo "Cancelled"
+    fi
+}
+
+main
