@@ -19,7 +19,7 @@ zip-project
 ## Installation
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/zip-project.git
+git clone https://github.com/dawaman43/zip-project.git
 cd zip-project
 chmod +x zip-project
 sudo ln -s "$(pwd)/zip-project" /usr/local/bin/zip-project
